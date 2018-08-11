@@ -1,22 +1,55 @@
 const assert = require('assert');
 const User = require('../src/user');
-// const Comment = require('../src/comment');
-// const BlogPost = require('../src/blogPost');
+const Comment = require('../src/comment');
+const BlogPost = require('../src/blogPost');
 
-describe('Virtual types', () => {
+describe('Associations', () => {
 
-    it('Postcount returns number of posts', (done) => {
-        const joe = new User({ 
-            name: 'Joe',
-            posts: [{title: 'PostTitle'}]
-        });
 
-        joe.save()
-            .then(() => User.findOne({ name: 'Joe' }))
+    let joe, blogPost, comment;
+
+    beforeEach((done) => {
+        joe = new User({ name: 'Joe' });
+        blogPost = new BlogPost({ title: 'JS is Great', content: 'Yes it really is' });
+        comment = new Comment({ content: 'Congrats on a great post' });
+
+        joe.blogPosts.push(blogPost); // mongoose sees model but knows to put objectId
+        blogPost.comments.push(comment);
+        comment.user = joe;
+
+        Promise.all([joe.save(), blogPost.save(), comment.save()])
+            .then(() => done());
+    });
+
+    it.only('saves a relation between a user and a blogpost ', (done) => {
+        User.findOne({ name: 'Joe' })
+            .populate('blogPosts')
             .then((user) => {
-                assert(user.postCount  === 1);
+                assert(user.blogPosts[0].title === 'JS is Great');
                 done();
-            });
+            })
+    });
+
+    it.only('saves a full relation graph ', (done) => {
+        User.findOne({ name: 'Joe' })
+            .populate({
+                path: 'blogPosts',
+                populate: {
+                    path: 'comments',
+                    model: 'comment',
+                    populate: {
+                        path: 'user',
+                        model: 'user'
+                    }
+                }
+            })
+            .then((user) => {
+                assert(user.name === 'Joe');
+                assert(user.blogPosts[0].title === 'JS is Great');
+                assert(user.blogPosts[0].comments[0].content === 'Congrats on a great post');
+                assert(user.blogPosts[0].comments[0].user.name === 'Joe');
+                done();
+            })
     });
 
 });

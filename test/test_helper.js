@@ -13,7 +13,12 @@ before((done)=>{
 
 //{ useMongoClient: true }
 beforeEach((done) => {
-    mongoose.connection.collections.users.drop(() =>{
-        done();
+    const { users, comments, blogposts } = mongoose.connection.collections; //es6
+    users.drop(() =>{
+        comments.drop(() =>{
+            blogposts.drop(()=>{
+                done();
+            });
+        });
     });
 });
